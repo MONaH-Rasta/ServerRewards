@@ -10,11 +10,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using Network;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Server Rewards", "k1lly0u", "0.4.73")]
+    [Info("Server Rewards", "k1lly0u", "0.4.74")]
     [Description("UI shop to buy items, kits, and commands")]
     class ServerRewards : RustPlugin
     {
@@ -1636,12 +1637,12 @@ namespace Oxide.Plugins
 
         private void SendEchoConsole(Network.Connection cn, string msg)
         {
-            if (Network.Net.sv.IsConnected())
+            if (Net.sv.IsConnected())
             {
-                Network.Net.sv.write.Start();
-                Network.Net.sv.write.PacketID(Network.Message.Type.ConsoleMessage);
-                Network.Net.sv.write.String(msg);
-                Network.Net.sv.write.Send(new Network.SendInfo(cn));
+                NetWrite netWrite = Net.sv.StartWrite();
+                netWrite.PacketID(Network.Message.Type.ConsoleMessage);
+                netWrite.String(msg);
+                netWrite.Send(new SendInfo(cn));
             }
         }
 
