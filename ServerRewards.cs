@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerRewards", "k1lly0u", "0.4.69")]
+    [Info("ServerRewards", "k1lly0u", "0.4.70")]
     [Description("A UI shop to buy items, kits and commands")]
     class ServerRewards : RustPlugin
     {
@@ -51,7 +51,7 @@ namespace Oxide.Plugins
         enum UserNPC { Add, Edit, Remove }
         enum UIPanel { None, Navigation, Kits, Items, Commands, Exchange, Transfer, Sell }
         enum PurchaseType { Kit, Item, Command }
-        enum Category { None, Weapon, Construction, Items, Resources, Attire, Tool, Medical, Food, Ammunition, Traps, Misc, Component, Electrical }
+        enum Category { None, Weapon, Construction, Items, Resources, Attire, Tool, Medical, Food, Ammunition, Traps, Misc, Component, Electrical, Fun }
         #endregion
 
         #region UI
@@ -309,6 +309,7 @@ namespace Oxide.Plugins
                             { Category.Tool, new Dictionary<int, CuiElementContainer>()},
                             { Category.Traps, new Dictionary<int, CuiElementContainer>()},
                             { Category.Weapon, new Dictionary<int, CuiElementContainer>()},
+                            { Category.Fun, new Dictionary<int, CuiElementContainer>()},
                         }
                     },
                     { UIPanel.Kits, new Dictionary<Category, Dictionary<int, CuiElementContainer>> { { Category.None, new Dictionary<int, CuiElementContainer>()} } },
