@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerRewards", "k1lly0u", "0.4.71")]
+    [Info("ServerRewards", "k1lly0u", "0.4.72")]
     [Description("A UI shop to buy items, kits and commands")]
     class ServerRewards : RustPlugin
     {
@@ -1467,12 +1467,12 @@ namespace Oxide.Plugins
             UpdatePriceList();
 
             foreach (BasePlayer player in BasePlayer.activePlayerList)
-                OnPlayerInit(player);
+                OnPlayerConnected(player);
 
             SaveLoop();
         }
 
-        private void OnPlayerInit(BasePlayer player)
+        private void OnPlayerConnected(BasePlayer player)
         {
             if (player != null)
             {
