@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerRewards", "k1lly0u", "0.4.68")]
+    [Info("ServerRewards", "k1lly0u", "0.4.69")]
     [Description("A UI shop to buy items, kits and commands")]
     class ServerRewards : RustPlugin
     {
@@ -51,7 +51,7 @@ namespace Oxide.Plugins
         enum UserNPC { Add, Edit, Remove }
         enum UIPanel { None, Navigation, Kits, Items, Commands, Exchange, Transfer, Sell }
         enum PurchaseType { Kit, Item, Command }
-        enum Category { None, Weapon, Construction, Items, Resources, Attire, Tool, Medical, Food, Ammunition, Traps, Misc, Component }
+        enum Category { None, Weapon, Construction, Items, Resources, Attire, Tool, Medical, Food, Ammunition, Traps, Misc, Component, Electrical }
         #endregion
 
         #region UI
@@ -60,7 +60,7 @@ namespace Oxide.Plugins
         const string UIRP = "SR_RPPanel";
         const string UIPopup = "SR_Popup";
 
-        class UI
+        private class UI
         {
             public static CuiElementContainer CreateElementContainer(string panelName, string color, string aMin, string aMax)
             {
@@ -274,14 +274,14 @@ namespace Oxide.Plugins
 
         private void CreateNewElement(string npcId = null, NPCData.NPCInfo info = null)
         {
-            Category[] categories = new Category[] { Category.Ammunition, Category.Attire, Category.Component, Category.Construction, Category.Food, Category.Items, Category.Medical, Category.Misc, Category.Resources, Category.Tool, Category.Traps, Category.Weapon };
+            Category[] categories = Enum.GetValues(typeof(Category)) as Category[];
 
             SetNewElement(npcId);
             CreateNavUI(npcId, info);
             CreateKitsUI(npcId, info);
 
-            foreach (Category category in categories)
-                CreateItemsUI(category, npcId, info);
+            for (int i = 0; i < categories.Length; i++)            
+                CreateItemsUI(categories[i], npcId, info);            
 
             CreateCommandsUI(npcId, info);
             CreateExchangeUI(npcId);
@@ -299,6 +299,7 @@ namespace Oxide.Plugins
                             { Category.Attire, new Dictionary<int, CuiElementContainer>()},
                             { Category.Component, new Dictionary<int, CuiElementContainer>()},
                             { Category.Construction, new Dictionary<int, CuiElementContainer>()},
+                            { Category.Electrical, new Dictionary<int, CuiElementContainer>()},
                             { Category.Food, new Dictionary<int, CuiElementContainer>()},
                             { Category.Items, new Dictionary<int, CuiElementContainer>()},
                             { Category.Medical, new Dictionary<int, CuiElementContainer>()},
@@ -322,9 +323,9 @@ namespace Oxide.Plugins
 
         private void CreateNavUI(string npcId = null, NPCData.NPCInfo npcInfo = null)
         {
-            CuiElementContainer container = UI.CreateElementContainer(UISelect, uiColors["dark"], "0 0.93", "1 1");
-            UI.CreatePanel(ref container, UISelect, uiColors["light"], "0.01 0", "0.99 1", true);
-            UI.CreateLabel(ref container, UISelect, $"{color1}{msg("storeTitle")}</color>", 26, "0.01 0", "0.2 1");
+            CuiElementContainer container = UI.CreateElementContainer(UISelect, uiColors["dark"], "0 0.95", "1 1");
+            UI.CreatePanel(ref container, UISelect, uiColors["light"], "0.005 0", "0.995 1", true);
+            UI.CreateLabel(ref container, UISelect, $"{color1}{msg("storeTitle")}</color>", 24, "0.01 0", "0.2 1");
 
             int i = 0;
             if (string.IsNullOrEmpty(npcId))
@@ -409,21 +410,16 @@ namespace Oxide.Plugins
 
         private void CreateItemsUI(Category category, string npcId = null, NPCData.NPCInfo npcInfo = null)
         {
-            Category[] categories = new Category[] { Category.Ammunition, Category.Attire, Category.Component, Category.Construction, Category.Food, Category.Items, Category.Medical, Category.Misc, Category.Resources, Category.Tool, Category.Traps, Category.Weapon };
+            Category[] categories = Enum.GetValues(typeof(Category)) as Category[];
 
             if (string.IsNullOrEmpty(npcId))
             {
                 int maxPages = 1;
                 List<KeyValuePair<string, RewardData.RewardItem>> items = rewardData.items.Where(x => x.Value.category == category).ToList();
-                bool[] hasItems = new bool[12];
-                for (int i = 0; i < categories.Length; i++)
-                {
-                    Category cat = categories[i];
-                    hasItems[i] = rewardData.items.Where(x => x.Value.category == cat).Count() > 0;
-                }
+                
                 if (items.Count == 0)
                 {
-                    CuiElementContainer container = CreateItemsElement(new List<KeyValuePair<string, RewardData.RewardItem>>(), category, hasItems, 0, false, false, null);
+                    CuiElementContainer container = CreateItemsElement(new List<KeyValuePair<string, RewardData.RewardItem>>(), category, 0, false, false, null);
                     uiManager.RenameComponents(container);
                     uiManager.standardElements[UIPanel.Items][category][0] = container;
                 }
@@ -436,7 +432,7 @@ namespace Oxide.Plugins
                         int min = i * 36;
                         int max = items.Count < 36 ? items.Count : min + 36 > items.Count ? (items.Count - min) : 36;
                         List<KeyValuePair<string, RewardData.RewardItem>> range = items.OrderBy(x => x.Value.displayName).ToList().GetRange(min, max);
-                        CuiElementContainer container = CreateItemsElement(range, category, hasItems, i, i < maxPages - 1, i > 0, null);
+                        CuiElementContainer container = CreateItemsElement(range, category, i, i < maxPages - 1, i > 0, null);
                         uiManager.RenameComponents(container);
                         uiManager.standardElements[UIPanel.Items][category][i] = container;
                     }
@@ -452,17 +448,10 @@ namespace Oxide.Plugins
                     if (npcInfo.useCustom)
                         items = rewardData.items.Where(y => npcInfo.items.Contains(y.Key)).Where(x => x.Value.category == category).ToList();
                     else items = rewardData.items.Where(x => x.Value.category == category).ToList();
-                    bool[] hasItems = new bool[12];
-                    for (int i = 0; i < categories.Length; i++)
-                    {
-                        Category cat = categories[i];
-                        if (npcInfo.useCustom)
-                            hasItems[i] = rewardData.items.Where(y => npcInfo.items.Contains(y.Key)).Where(x => x.Value.category == cat).Count() > 0;
-                        else hasItems[i] = rewardData.items.Where(x => x.Value.category == cat).Count() > 0;
-                    }
+
                     if (items.Count == 0)
                     {
-                        CuiElementContainer container = CreateItemsElement(new List<KeyValuePair<string, RewardData.RewardItem>>(), category, hasItems, 0, false, false, npcId);
+                        CuiElementContainer container = CreateItemsElement(new List<KeyValuePair<string, RewardData.RewardItem>>(), category, 0, false, false, npcId);
                         uiManager.RenameComponents(container);
                         uiManager.npcElements[npcId][UIPanel.Items][category][0] = container;
                     }
@@ -475,7 +464,7 @@ namespace Oxide.Plugins
                             int min = i * 36;
                             int max = items.Count < 36 ? items.Count : min + 36 > items.Count ? (items.Count - min) : 36;
                             List<KeyValuePair<string, RewardData.RewardItem>> range = items.OrderBy(x => x.Value.displayName).ToList().GetRange(min, max);
-                            CuiElementContainer container = CreateItemsElement(range, category, hasItems, i, i < maxPages - 1, i > 0, npcId);
+                            CuiElementContainer container = CreateItemsElement(range, category, i, i < maxPages - 1, i > 0, npcId);
                             uiManager.RenameComponents(container);
                             uiManager.npcElements[npcId][UIPanel.Items][category][i] = container;
                         }
@@ -603,15 +592,15 @@ namespace Oxide.Plugins
 
         private void CreateExchangeUI(string npcId = null)
         {
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg("storeExchange")}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.99", true);
             UI.CreateLabel(ref container, UIMain, $"{color1}{msg("exchange1")}</color>", 24, "0 0.82", "1 0.9");
             UI.CreateLabel(ref container, UIMain, $"{color2}{msg("exchange2")}</color>{color1}{configData.Exchange.RP} {msg("storeRP")}</color> -> {color1}{configData.Exchange.Economics} {msg("storeCoins")}</color>", 20, "0 0.6", "1 0.7");
-            UI.CreateLabel(ref container, UIMain, $"{color1}{msg("storeRP")} => {msg("storeEcon")}</color>", 20, "0.25 0.4", "0.4 0.55");
-            UI.CreateLabel(ref container, UIMain, $"{color1}{msg("storeEcon")} => {msg("storeRP")}</color>", 20, "0.6 0.4", "0.75 0.55");
-            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeExchange"), 20, "0.25 0.3", "0.4 0.38", "SRUI_Exchange 1");
-            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeExchange"), 20, "0.6 0.3", "0.75 0.38", "SRUI_Exchange 2");
+            UI.CreateLabel(ref container, UIMain, $"{color1}{msg("storeRP")} => {msg("storeEcon")}</color>", 20, "0.25 0.35", "0.4 0.4");
+            UI.CreateLabel(ref container, UIMain, $"{color1}{msg("storeEcon")} => {msg("storeRP")}</color>", 20, "0.6 0.35", "0.75 0.4");
+            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeExchange"), 20, "0.25 0.3", "0.4 0.35", "SRUI_Exchange 1");
+            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeExchange"), 20, "0.6 0.3", "0.75 0.35", "SRUI_Exchange 2");
 
             uiManager.RenameComponents(container);
             if (!string.IsNullOrEmpty(npcId))
@@ -619,15 +608,15 @@ namespace Oxide.Plugins
             else uiManager.standardElements[UIPanel.Exchange][Category.None][0] = container;
         }
 
-        private CuiElementContainer CreateItemsElement(List<KeyValuePair<string, RewardData.RewardItem>> items, Category category, bool[] hasItems, int page, bool pageUp, bool pageDown, string npcId)
+        private CuiElementContainer CreateItemsElement(List<KeyValuePair<string, RewardData.RewardItem>> items, Category category, int page, bool pageUp, bool pageDown, string npcId)
         {
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg(category.ToString())}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
 
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.94", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.949", "0.995 0.99", true);
 
-            CreateSubMenu(ref container, UIMain, hasItems, npcId);
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.93", true);
+            CreateSubMenu(ref container, UIMain, npcId);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.94", true);
 
             if (pageUp) UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], ">>>", 16, "0.87 0.03", "0.955 0.07", $"SRUI_ChangeElement Items {page + 1} {npcId ?? "null"} {category}");
             if (pageDown) UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "<<<", 16, "0.045 0.03", "0.13 0.07", $"SRUI_ChangeElement Items {page - 1} {npcId ?? "null"} {category}");
@@ -642,10 +631,10 @@ namespace Oxide.Plugins
 
         private CuiElementContainer CreateKitsElement(List<KeyValuePair<string, RewardData.RewardKit>> kits, int page, bool pageUp, bool pageDown, string npcId = null)
         {
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg("storeKits")}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
 
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.99", true);
 
             if (kits.Count == 0)
                 UI.CreateLabel(ref container, UIMain, $"{color1}{msg("noKits")}</color>", 24, "0 0.82", "1 0.9");
@@ -669,9 +658,9 @@ namespace Oxide.Plugins
 
         private CuiElementContainer CreateCommandsElement(List<KeyValuePair<string, RewardData.RewardCommand>> commands, int page, bool pageUp, bool pageDown, string npcId = null)
         {
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg("storeCommands")}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.99", true);
 
             if (commands.Count == 0)
                 UI.CreateLabel(ref container, UIMain, $"{color1}{msg("noCommands")}</color>", 24, "0 0.82", "1 0.9");
@@ -745,9 +734,9 @@ namespace Oxide.Plugins
         #region Sale System
         private CuiElementContainer CreateSaleElement(BasePlayer player)
         {
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg("storeSales")}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.99", true);
             UI.CreateLabel(ref container, UIMain, $"{color1}{msg("selectItemSell")}</color>", 20, "0 0.9", "1 1");
 
             int i = 0;
@@ -777,8 +766,8 @@ namespace Oxide.Plugins
             UI.CreateLabel(ref container, panelName, $"{msg("Name")}:  {color1}{name}</color>", 14, $"{pos[0]} {pos[1]}", $"{pos[0] + 0.22f} {pos[3]}", TextAnchor.MiddleLeft);
             UI.CreateLabel(ref container, panelName, $"{msg("Amount")}:  {color1}{amount}</color>", 14, $"{pos[0] + 0.22f} {pos[1]}", $"{pos[0] + 0.32f} {pos[3]}", TextAnchor.MiddleLeft);
             if (saleData.items[shortname][skinId].enabled)
-                UI.CreateButton(ref container, panelName, uiColors["buttonbg"], msg("Sell"), 14, $"{pos[0] + 0.35f} {pos[1]}", $"{pos[2]} {pos[3]}", $"SRUI_SellItem {shortname} {skinId} {amount}");
-            else UI.CreateButton(ref container, panelName, uiColors["buttonbg"], msg("CantSell"), 14, $"{pos[0] + 0.35f} {pos[1]}", $"{pos[2]} {pos[3]}", string.Empty);
+                UI.CreateButton(ref container, panelName, uiColors["buttonbg"], msg("Sell"), 12, $"{pos[0] + 0.37f} {pos[1] + 0.0015f}", $"{pos[2]} {pos[3] - 0.0015f}", $"SRUI_SellItem {shortname} {skinId} {amount}");
+            else UI.CreateButton(ref container, panelName, uiColors["buttonbg"], msg("CantSell"), 12, $"{pos[0] + 0.37f} {pos[1] + 0.0015f}", $"{pos[2]} {pos[3] - 0.0015f}", string.Empty);
         }
 
         private void SellItem(BasePlayer player, string shortname, ulong skinId, int amount)
@@ -819,30 +808,33 @@ namespace Oxide.Plugins
         #region Transfer System
         private CuiElementContainer CreateTransferElement(BasePlayer player, int page = 0)
         {
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg("storeTransfer")}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.99", true);
             UI.CreateLabel(ref container, UIMain, $"{color1}{msg("transfer1", player.UserIDString)}</color>", 20, "0 0.9", "1 1");
 
             int playerCount = BasePlayer.activePlayerList.Count;
-            if (playerCount > 96)
+            if (playerCount > 136)
             {
-                int maxpages = (playerCount - 1) / 96 + 1;
+                int maxpages = (playerCount - 1) / 136 + 1;
                 if (page < maxpages - 1)
-                    UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeNext", player.UserIDString), 18, "0.87 0.92", "0.97 0.97", $"SRUI_Transfer {page + 1}");
+                    UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeNext", player.UserIDString), 14, "0.87 0.935", "0.97 0.97", $"SRUI_Transfer {page + 1}");
                 if (page > 0)
-                    UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeBack", player.UserIDString), 18, "0.03 0.92", "0.13 0.97", $"SRUI_Transfer {page - 1}");
+                    UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], msg("storeBack", player.UserIDString), 14, "0.03 0.935", "0.13 0.97", $"SRUI_Transfer {page - 1}");
             }
-            int maxentries = (96 * (page + 1));
+
+            int maxentries = (136 * (page + 1));
             if (maxentries > playerCount)
                 maxentries = playerCount;
-            int rewardcount = 96 * page;
 
+            int rewardcount = 136 * page;
             int i = 0;
             for (int n = rewardcount; n < maxentries; n++)
             {
-                if (BasePlayer.activePlayerList[n] == null) continue;
-                CreatePlayerNameEntry(ref container, UIMain, BasePlayer.activePlayerList[n].displayName, BasePlayer.activePlayerList[n].UserIDString, i);
+                if (BasePlayer.activePlayerList[n] == null)
+                    continue;
+
+                CreatePlayerNameEntry(ref container, UIMain, BasePlayer.activePlayerList[n].displayName, BasePlayer.activePlayerList[n].UserIDString, i);               
                 i++;
             }
             return container;
@@ -851,15 +843,15 @@ namespace Oxide.Plugins
         private void TransferElement(BasePlayer player, string name, string id)
         {
             CuiHelper.DestroyUi(player, UIMain);
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg("storeTransfer")}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.99", true);
 
             UI.CreateLabel(ref container, UIMain, $"{color1}{msg("transfer2", player.UserIDString)}</color>", 24, "0 0.82", "1 0.9");
-            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "1", 20, "0.27 0.3", "0.37 0.38", $"SRUI_TransferID {id} 1");
-            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "10", 20, "0.39 0.3", "0.49 0.38", $"SRUI_TransferID {id} 10");
-            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "100", 20, "0.51 0.3", "0.61 0.38", $"SRUI_TransferID {id} 100");
-            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "1000", 20, "0.63 0.3", "0.73 0.38", $"SRUI_TransferID {id} 1000");
+            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "1", 20, "0.27 0.3", "0.37 0.35", $"SRUI_TransferID {id} 1");
+            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "10", 20, "0.39 0.3", "0.49 0.35", $"SRUI_TransferID {id} 10");
+            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "100", 20, "0.51 0.3", "0.61 0.35", $"SRUI_TransferID {id} 100");
+            UI.CreateButton(ref container, UIMain, uiColors["buttonbg"], "1000", 20, "0.63 0.3", "0.73 0.35", $"SRUI_TransferID {id} 1000");
 
             CuiHelper.DestroyUi(player, UIMain);
             CuiHelper.AddUi(player, container);
@@ -877,24 +869,29 @@ namespace Oxide.Plugins
             Vector2 posMin = origin + offset;
             Vector2 posMax = posMin + dimensions;
 
-            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], buttonname, 16, $"{posMin.x} {posMin.y}", $"{posMax.x} {posMax.y}", command);
+            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], buttonname, 15, $"{posMin.x} {posMin.y}", $"{posMax.x} {posMax.y}", command);
         }
 
-        private void CreateSubMenu(ref CuiElementContainer container, string panelName, bool[] hasItems, string npcId = null)
+        private void CreateSubMenu(ref CuiElementContainer container, string panelName, string npcId = null)
         {
-            Category[] categories = new Category[] { Category.Ammunition, Category.Attire, Category.Component, Category.Construction, Category.Food, Category.Items, Category.Medical, Category.Misc, Category.Resources, Category.Tool, Category.Traps, Category.Weapon };
+            Category[] categories = Enum.GetValues(typeof(Category)) as Category[];
 
-            float sizeX = 0.96f / categories.Length;
-            int i = 0;
+            float sizeX = 0.98f / (categories.Length - 1);
+            int x = 0;
             int y = 0;
-            foreach (Category cat in categories)
+            for (int i = 0; i < categories.Length; i++)
             {
-                if (hasItems[y])
+                Category cat = categories[i];
+
+                if (cat == Category.None)
+                    continue;
+
+                if (rewardData.HasItems(cat))
                 {
-                    float xMin = 0.02f + (sizeX * i) + 0.003f;
+                    float xMin = 0.01f + (sizeX * x) + 0.003f;
                     float xMax = xMin + sizeX - 0.006f;
-                    UI.CreateButton(ref container, panelName, uiColors["buttonbg"], msg(cat.ToString()), 12, $"{xMin} 0.945", $"{xMax} 0.985", $"SRUI_ChangeElement Items 0 {npcId ?? "null"} {cat.ToString()}");
-                    i++;
+                    UI.CreateButton(ref container, panelName, uiColors["buttonbg"], msg(cat.ToString()), 12, $"{xMin} 0.955", $"{xMax} 0.985", $"SRUI_ChangeElement Items 0 {npcId ?? "null"} {cat.ToString()}");
+                    x++;
                 }
                 y++;
             }
@@ -937,12 +934,12 @@ namespace Oxide.Plugins
                     UI.CreateLabel(ref container, panelName, $"{color1}x{item.amount}</color>", 16, $"{posMin.x + 0.02} {posMin.y + 0.09}", $"{posMax.x - 0.02} {posMax.y - 0.02}", TextAnchor.LowerLeft);
             }
             UI.CreateLabel(ref container, panelName, $"{item.displayName}{(item.isBp ? " " + msg("isBp") : string.Empty)}", 14, $"{posMin.x} {posMin.y + 0.04}", $"{posMax.x} {posMin.y + 0.09}");
-            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], $"{msg("storeCost")}: {item.cost}", 14, $"{posMin.x + 0.015} {posMin.y}", $"{posMax.x - 0.015} {posMin.y + 0.04}", $"SRUI_BuyItem {itemId}");
+            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], $"{msg("storeCost")}: {item.cost}", 14, $"{posMin.x + 0.015} {posMin.y + 0.01}", $"{posMax.x - 0.015} {posMin.y + 0.04}", $"SRUI_BuyItem {itemId}");
         }
 
         private void CreateKitCommandEntry(ref CuiElementContainer container, string panelName, string displayName, string name, string description, int cost, int number, bool kit, string icon = null)
         {
-            Vector2 dimensions = new Vector2(0.8f, 0.079f);
+            Vector2 dimensions = new Vector2(0.83f, 0.079f);
             Vector2 origin = new Vector2(0.03f, 0.86f);
             float offsetY = (0.004f + dimensions.y) * number;
             Vector2 offset = new Vector2(0, offsetY);
@@ -960,8 +957,8 @@ namespace Oxide.Plugins
                 }
             }
 
-            UI.CreateLabel(ref container, panelName, $"{color1}{displayName}</color> -- {color2}{description}</color>", 16, $"{posMin.x} {posMin.y}", $"{posMax.x} {posMax.y}", TextAnchor.MiddleLeft);
-            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], $"{msg("storeCost")}: {cost}", 16, $"0.87 {posMin.y + 0.02}", $"0.97 {posMax.y - 0.015f}", command);
+            UI.CreateLabel(ref container, panelName, $"{color1}{displayName}</color> -- {color2}<size=12>{description}</size></color>", 16, $"{posMin.x} {posMin.y}", $"{posMax.x} {posMax.y}", TextAnchor.MiddleLeft);
+            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], $"{msg("storeCost")}: {cost}", 13, $"0.9 {posMin.y + 0.03}", $"0.97 {posMax.y - 0.015f}", command);
         }
 
         private void CreatePlayerNameEntry(ref CuiElementContainer container, string panelName, string name, string id, int number)
@@ -972,68 +969,93 @@ namespace Oxide.Plugins
 
         private float[] CalcPlayerNamePos(int number)
         {
-            Vector2 position = new Vector2(0.014f, 0.82f);
-            Vector2 dimensions = new Vector2(0.12f, 0.055f);
+            Vector2 position = new Vector2(0.012f, 0.84f);
+            Vector2 dimensions = new Vector2(0.12f, 0.04f);
             float offsetY = 0;
             float offsetX = 0;
             if (number >= 0 && number < 8)
             {
-                offsetX = (0.002f + dimensions.x) * number;
+                offsetX = (0.0025f + dimensions.x) * number;
             }
             if (number > 7 && number < 16)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 8);
+                offsetX = (0.0025f + dimensions.x) * (number - 8);
                 offsetY = (-0.0055f - dimensions.y) * 1;
             }
             if (number > 15 && number < 24)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 16);
+                offsetX = (0.0025f + dimensions.x) * (number - 16);
                 offsetY = (-0.0055f - dimensions.y) * 2;
             }
             if (number > 23 && number < 32)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 24);
+                offsetX = (0.0025f + dimensions.x) * (number - 24);
                 offsetY = (-0.0055f - dimensions.y) * 3;
             }
             if (number > 31 && number < 40)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 32);
+                offsetX = (0.0025f + dimensions.x) * (number - 32);
                 offsetY = (-0.0055f - dimensions.y) * 4;
             }
             if (number > 39 && number < 48)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 40);
+                offsetX = (0.0025f + dimensions.x) * (number - 40);
                 offsetY = (-0.0055f - dimensions.y) * 5;
             }
             if (number > 47 && number < 56)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 48);
+                offsetX = (0.0025f + dimensions.x) * (number - 48);
                 offsetY = (-0.0055f - dimensions.y) * 6;
             }
             if (number > 55 && number < 64)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 56);
+                offsetX = (0.0025f + dimensions.x) * (number - 56);
                 offsetY = (-0.0055f - dimensions.y) * 7;
             }
             if (number > 63 && number < 72)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 64);
+                offsetX = (0.0025f + dimensions.x) * (number - 64);
                 offsetY = (-0.0055f - dimensions.y) * 8;
             }
             if (number > 71 && number < 80)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 72);
+                offsetX = (0.0025f + dimensions.x) * (number - 72);
                 offsetY = (-0.0055f - dimensions.y) * 9;
             }
             if (number > 79 && number < 88)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 80);
+                offsetX = (0.0025f + dimensions.x) * (number - 80);
                 offsetY = (-0.0055f - dimensions.y) * 10;
             }
             if (number > 87 && number < 96)
             {
-                offsetX = (0.002f + dimensions.x) * (number - 88);
+                offsetX = (0.0025f + dimensions.x) * (number - 88);
                 offsetY = (-0.0055f - dimensions.y) * 11;
+            }
+            if (number > 95 && number < 104)
+            {
+                offsetX = (0.0025f + dimensions.x) * (number - 96);
+                offsetY = (-0.0055f - dimensions.y) * 12;
+            }
+            if (number > 103 && number < 112)
+            {
+                offsetX = (0.0025f + dimensions.x) * (number - 104);
+                offsetY = (-0.0055f - dimensions.y) * 13;
+            }
+            if (number > 111 && number < 120)
+            {
+                offsetX = (0.0025f + dimensions.x) * (number - 112);
+                offsetY = (-0.0055f - dimensions.y) * 14;
+            }
+            if (number > 119 && number < 128)
+            {
+                offsetX = (0.0025f + dimensions.x) * (number - 120);
+                offsetY = (-0.0055f - dimensions.y) * 15;
+            }
+            if (number > 127 && number < 136)
+            {
+                offsetX = (0.0025f + dimensions.x) * (number - 128);
+                offsetY = (-0.0055f - dimensions.y) * 16;
             }
             Vector2 offset = new Vector2(offsetX, offsetY);
             Vector2 posMin = position + offset;
@@ -1288,7 +1310,7 @@ namespace Oxide.Plugins
             if (player == null)
                 return;
 
-            uiManager.SwitchElement(player, UIPanel.Transfer, Category.None, 0, uiManager.GetNPCInUse(player));
+            uiManager.SwitchElement(player, UIPanel.Transfer, Category.None, args.GetInt(0), uiManager.GetNPCInUse(player));
         }
 
         [ConsoleCommand("SRUI_TransferNext")]
@@ -2499,6 +2521,7 @@ namespace Oxide.Plugins
                                                     SendMSG(player, string.Empty, "You must place the item in your hands");
                                                     return;
                                                 }
+
                                                 Category cat = (Category)Enum.Parse(typeof(Category), item.info.category.ToString(), true);
 
                                                 RewardData.RewardItem newItem = new RewardData.RewardItem
@@ -2922,9 +2945,9 @@ namespace Oxide.Plugins
                                                 SaveRewards();
                                             }
                                         }
-                                        else SendReply(conArgs, msg("noKit"), string.Empty);
+                                        else SendReply(conArgs, msg("noKit"));
                                     }
-                                    else SendReply(conArgs, string.Empty, msg("addSynKit"));
+                                    else SendReply(conArgs, msg("addSynKit"));
                                     return;
                                 case "command":
                                     if (args.Length >= 5)
@@ -2944,7 +2967,7 @@ namespace Oxide.Plugins
                                         SendReply(conArgs, string.Format(msg("addSuccess"), "command", args[2], i));
                                         SaveRewards();
                                     }
-                                    else SendReply(conArgs, string.Empty, msg("addSynCommand"));
+                                    else SendReply(conArgs, msg("addSynCommand"));
                                     return;
                             }
                         }
@@ -2961,28 +2984,28 @@ namespace Oxide.Plugins
                                     if (rewardData.kits.ContainsKey(args[2]))
                                     {
                                         rewardData.kits.Remove(args[2]);
-                                        SendReply(conArgs, string.Empty, string.Format(msg("remSuccess"), args[2]));
+                                        SendReply(conArgs, string.Format(msg("remSuccess"), args[2]));
                                         SaveRewards();
                                     }
-                                    else SendReply(conArgs, msg("noKitRem"), string.Empty);
+                                    else SendReply(conArgs, msg("noKitRem"));
                                     return;
                                 case "item":
                                     if (rewardData.items.ContainsKey(args[2]))
                                     {
                                         rewardData.items.Remove(args[2]);
-                                        SendReply(conArgs, string.Empty, string.Format(msg("remSuccess"), args[2]));
+                                        SendReply(conArgs, string.Format(msg("remSuccess"), args[2]));
                                         SaveRewards();
                                     }
-                                    else SendReply(conArgs, msg("noItemRem"), string.Empty);
+                                    else SendReply(conArgs, msg("noItemRem"));
                                     return;
                                 case "command":
                                     if (rewardData.commands.ContainsKey(args[2]))
                                     {
                                         rewardData.commands.Remove(args[2]);
-                                        SendReply(conArgs, string.Empty, string.Format(msg("remSuccess"), args[2]));
+                                        SendReply(conArgs, string.Format(msg("remSuccess"), args[2]));
                                         SaveRewards();
                                     }
-                                    else SendReply(conArgs, msg("noCommandRem"), string.Empty);
+                                    else SendReply(conArgs, msg("noCommandRem"));
                                     return;
                             }
                         }
@@ -3037,13 +3060,13 @@ namespace Oxide.Plugins
                                                     else SendReply(conArgs, "You must enter a cooldown number");
                                                     return;
                                                 default:
-                                                    SendReply(conArgs, msg("editSynKit"), string.Empty);
+                                                    SendReply(conArgs, msg("editSynKit"));
                                                     return; ;
                                             }
                                         }
-                                        else SendReply(conArgs, msg("editSynKit"), string.Empty);
+                                        else SendReply(conArgs, msg("editSynKit"));
                                     }
-                                    else SendReply(conArgs, msg("noKitRem"), string.Empty);
+                                    else SendReply(conArgs, msg("noKitRem"));
                                     return;
                                 case "item":
                                     if (rewardData.items.ContainsKey(args[2]))
@@ -3094,13 +3117,13 @@ namespace Oxide.Plugins
                                                     else SendReply(conArgs, "You must enter a cooldown number");
                                                     return;
                                                 default:
-                                                    SendReply(conArgs, msg("editSynItem2"), string.Empty);
+                                                    SendReply(conArgs, msg("editSynItem2"));
                                                     return;
                                             }
                                         }
-                                        else SendReply(conArgs, msg("editSynKit"), string.Empty);
+                                        else SendReply(conArgs, msg("editSynKit"));
                                     }
-                                    else SendReply(conArgs, msg("noItemRem"), string.Empty);
+                                    else SendReply(conArgs, msg("noItemRem"));
                                     return;
                                 case "command":
                                     if (rewardData.commands.ContainsKey(args[2]))
@@ -3163,13 +3186,13 @@ namespace Oxide.Plugins
                                                     else SendReply(conArgs, "You must enter a cooldown number");
                                                     return;
                                                 default:
-                                                    SendReply(conArgs, msg("editSynCommand"), string.Empty);
+                                                    SendReply(conArgs, msg("editSynCommand"));
                                                     return;
                                             }
                                         }
-                                        else SendReply(conArgs, msg("editSynKit"), string.Empty);
+                                        else SendReply(conArgs, msg("editSynKit"));
                                     }
-                                    else SendReply(conArgs, msg("noCommandRem"), string.Empty);
+                                    else SendReply(conArgs, msg("noCommandRem"));
                                     return;
                             }
                         }
@@ -3739,6 +3762,16 @@ namespace Oxide.Plugins
             public Dictionary<string, RewardItem> items = new Dictionary<string, RewardItem>();
             public SortedDictionary<string, RewardKit> kits = new SortedDictionary<string, RewardKit>();
             public SortedDictionary<string, RewardCommand> commands = new SortedDictionary<string, RewardCommand>();
+
+            public bool HasItems(Category category)
+            {
+                foreach (KeyValuePair<string, RewardItem> kvp in items)
+                {
+                    if (kvp.Value.category == category)
+                        return true;
+                }
+                return false;
+            }
 
             public class RewardItem : Reward
             {
