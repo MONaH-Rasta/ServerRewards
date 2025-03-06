@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Server Rewards", "k1lly0u", "0.4.74")]
+    [Info("Server Rewards", "k1lly0u", "0.4.75")]
     [Description("UI shop to buy items, kits, and commands")]
     class ServerRewards : RustPlugin
     {
@@ -1860,22 +1860,27 @@ namespace Oxide.Plugins
 
         private object GetUserID(object userID)
         {
-            if (userID == null)
-                return false;
-            if (userID is ulong)
-                return (ulong)userID;
-            else if (userID is string)
+            switch( userID )
             {
-                ulong ID = 0U;
-                if (ulong.TryParse((string)userID, out ID))
-                    return ID;
-                return false;
+                case null:
+                    return false;
+                case ulong id:
+                    return id;
+                case string id:
+                {
+                    if (ulong.TryParse(id, out ulong ID))
+                        return ID;
+                    return false;
+                }
+                case BasePlayer.EncryptedValue<ulong> id:
+                    return id.Get();
+                case BasePlayer player:
+                    return player.userID.Get();
+                case IPlayer player:
+                    return ulong.Parse(player.Id);
+                default:
+                    return false;
             }
-            else if (userID is BasePlayer)
-                return (userID as BasePlayer).userID;
-            else if (userID is IPlayer)
-                return ulong.Parse((userID as IPlayer).Id);
-            return false;
         }
 
         private JObject GetItemList()
