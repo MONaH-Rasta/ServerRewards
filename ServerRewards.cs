@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerRewards", "k1lly0u", "0.4.70")]
+    [Info("ServerRewards", "k1lly0u", "0.4.71")]
     [Description("A UI shop to buy items, kits and commands")]
     class ServerRewards : RustPlugin
     {
@@ -775,9 +775,9 @@ namespace Oxide.Plugins
         {
             SaleData.SaleItem saleItem = saleData.items[shortname][skinId];
             string name = saleItem.displayName;
-            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.93");
+            CuiElementContainer container = UI.CreateElementContainer(UIMain, uiColors["dark"], "0 0", "1 0.95");
             UI.CreateLabel(ref container, UIMain, $"<color={configData.Colors.Background_Dark.Color}>{msg("storeSales")}</color>", 200, "0 0", "1 1", TextAnchor.MiddleCenter);
-            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.01 0.01", "0.99 0.99", true);
+            UI.CreatePanel(ref container, UIMain, uiColors["light"], "0.005 0.01", "0.995 0.99", true);
             UI.CreateLabel(ref container, UIMain, $"{color1}{msg("selectToSell")}</color>", 20, "0 0.9", "1 1");
             int salePrice = (int)Math.Floor(saleItem.price * amount);
 
@@ -832,10 +832,11 @@ namespace Oxide.Plugins
             int i = 0;
             for (int n = rewardcount; n < maxentries; n++)
             {
-                if (BasePlayer.activePlayerList[n] == null)
+                BasePlayer target = BasePlayer.activePlayerList[n];
+                if (target == null || target == player)
                     continue;
 
-                CreatePlayerNameEntry(ref container, UIMain, BasePlayer.activePlayerList[n].displayName, BasePlayer.activePlayerList[n].UserIDString, i);               
+                CreatePlayerNameEntry(ref container, UIMain, target.displayName, target.UserIDString, i);               
                 i++;
             }
             return container;
@@ -1387,7 +1388,7 @@ namespace Oxide.Plugins
 
             string shortname = arg.GetString(0);
             ulong skinId = arg.GetUInt64(1);
-            int amount = arg.GetInt(2);
+            int amount = Mathf.Abs(arg.GetInt(2));
 
             int max = GetAmount(player, shortname, skinId);
 
@@ -1406,20 +1407,23 @@ namespace Oxide.Plugins
             if (player == null)
                 return;
 
-            string itemId = arg.GetString(0);
+            string shortname = arg.GetString(0);
             ulong skinId = arg.GetUInt64(1);
-            int amount = arg.GetInt(2);
+            int amount = Mathf.Abs(arg.GetInt(2));
 
-            SaleData.SaleItem saleItem = saleData.items[itemId][skinId];
-            int salePrice = (int)Math.Floor(saleItem.price * amount);
+            SaleData.SaleItem saleItem = saleData.items[shortname][skinId];
+            if (!saleItem.enabled)
+                return;
 
-            if (TakeResources(player, itemId, skinId, amount))
-            {
+            if (TakeResources(player, shortname, skinId, amount))
+            {                
+                int salePrice = (int)Math.Floor(saleItem.price * amount);
+
                 AddPoints(player.userID, salePrice);
 
                 if (configData.Options.Logs)
                 {
-                    string message = $"{player.displayName} sold {amount}x {itemId} for {salePrice}";
+                    string message = $"{player.displayName} sold {amount}x {shortname} for {salePrice}";
                     LogToFile($"Sold Items", $"[{DateTime.Now.ToString("hh:mm:ss")}] {message}", this);
                 }
 
@@ -1693,79 +1697,76 @@ namespace Oxide.Plugins
             }
         }
 
-        private int GetAmount(BasePlayer player, string shortname, ulong skinid)
+        private int GetAmount(BasePlayer player, string shortname, ulong skinId)
         {
-            List<Item> items = player.inventory.AllItems().ToList().FindAll(x => x.info.shortname == shortname);
-            int num = 0;
-            foreach (Item item in items)
+            List<Item> list = Facepunch.Pool.GetList<Item>();
+            player.inventory.AllItemsNoAlloc(ref list);
+
+            int count = 0;
+            for (int i = 0; i < list.Count; i++)
             {
-                if (!item.IsBusy())
-                {
-                    if (item.skin == skinid)
-                        num = num + item.amount;
-                }
+                Item item = list[i];
+                if (!item.IsBusy() && item.info.shortname == shortname && item.skin == skinId)
+                    count += item.amount;
             }
-            return num;
+
+            Facepunch.Pool.FreeList(ref list);
+            return count;            
         }
 
         private bool TakeResources(BasePlayer player, string shortname, ulong skinId, int iAmount)
         {
-            int num = TakeResourcesFrom(player, player.inventory.containerMain.itemList, shortname, skinId, iAmount);
-            if (num < iAmount)
-                num += TakeResourcesFrom(player, player.inventory.containerBelt.itemList, shortname, skinId, iAmount);
-            if (num < iAmount)
-                num += TakeResourcesFrom(player, player.inventory.containerWear.itemList, shortname, skinId, iAmount);
-            if (num >= iAmount)
-                return true;
-            return false;
-        }
+            int itemId = ItemManager.itemDictionaryByName[shortname].itemid;
+            
+            List<Item> list = Facepunch.Pool.GetList<Item>();
+            List<Item> collect = Facepunch.Pool.GetList<Item>();
 
-        private int TakeResourcesFrom(BasePlayer player, List<Item> container, string shortname, ulong skinId, int iAmount)
-        {
-            List<Item> collect = new List<Item>();
-            List<Item> items = new List<Item>();
-            int num = 0;
-            foreach (Item item in container)
-            {
+            player.inventory.AllItemsNoAlloc(ref list);
+
+            int count = 0;
+            for (int i = 0; i < list.Count; i++)
+            {                
+                Item item = list[i];
                 if (item.info.shortname == shortname && item.skin == skinId)
                 {
-                    int num1 = iAmount - num;
-                    if (num1 > 0)
+                    int required = iAmount - count;
+                    if (item.amount <= required)
                     {
-                        if (item.amount <= num1)
-                        {
-                            if (item.amount <= num1)
-                            {
-                                num = num + item.amount;
-                                items.Add(item);
-                                if (collect != null)
-                                    collect.Add(item);
-                            }
-                            if (num != iAmount)
-                                continue;
+                        count += item.amount;
+                        collect.Add(item);
+
+                        if (count == iAmount)
                             break;
-                        }
-                        else
-                        {
-                            item.MarkDirty();
-                            Item item1 = item;
-                            item1.amount = item1.amount - num1;
-                            num = num + num1;
-                            Item item2 = ItemManager.CreateByName(shortname, 1, skinId);
-                            item2.amount = num1;
-                            item2.CollectedForCrafting(player);
-                            if (collect != null)
-                                collect.Add(item2);
-                            break;
-                        }
+                    }
+                    else
+                    {
+                        item.amount -= required;
+                        item.MarkDirty();
+                        count += required;
+                        break;
                     }
                 }
             }
-            foreach (Item item3 in items)
-                item3.RemoveFromContainer();
-            return num;
-        }
 
+            bool flag = false;
+
+            if (count >= iAmount)
+            {
+                for (int i = 0; i < collect.Count; i++)
+                {
+                    Item item = collect[i];
+                    item.RemoveFromContainer();
+                    item.Remove(0f);
+                }
+
+                flag = true;
+            }
+
+            Facepunch.Pool.FreeList(ref list);
+            Facepunch.Pool.FreeList(ref collect);
+            return flag;           
+        }
+         
         private string FormatTime(double time)
         {
             TimeSpan dateDifference = TimeSpan.FromSeconds((float)time);
