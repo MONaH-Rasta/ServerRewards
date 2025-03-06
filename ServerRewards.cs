@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Server Rewards", "k1lly0u", "0.4.75")]
+    [Info("Server Rewards", "k1lly0u", "0.4.76")]
     [Description("UI shop to buy items, kits, and commands")]
     class ServerRewards : RustPlugin
     {
@@ -1700,7 +1700,7 @@ namespace Oxide.Plugins
 
         private int GetAmount(BasePlayer player, string shortname, ulong skinId)
         {
-            List<Item> list = Facepunch.Pool.GetList<Item>();
+            List<Item> list = Facepunch.Pool.Get<List<Item>>();
             player.inventory.AllItemsNoAlloc(ref list);
 
             int count = 0;
@@ -1711,7 +1711,7 @@ namespace Oxide.Plugins
                     count += item.amount;
             }
 
-            Facepunch.Pool.FreeList(ref list);
+            Facepunch.Pool.FreeUnmanaged(ref list);
             return count;            
         }
 
@@ -1719,8 +1719,8 @@ namespace Oxide.Plugins
         {
             int itemId = ItemManager.itemDictionaryByName[shortname].itemid;
             
-            List<Item> list = Facepunch.Pool.GetList<Item>();
-            List<Item> collect = Facepunch.Pool.GetList<Item>();
+            List<Item> list = Facepunch.Pool.Get<List<Item>>();
+            List<Item> collect = Facepunch.Pool.Get<List<Item>>();
 
             player.inventory.AllItemsNoAlloc(ref list);
 
@@ -1763,8 +1763,8 @@ namespace Oxide.Plugins
                 flag = true;
             }
 
-            Facepunch.Pool.FreeList(ref list);
-            Facepunch.Pool.FreeList(ref collect);
+            Facepunch.Pool.FreeUnmanaged(ref list);
+            Facepunch.Pool.FreeUnmanaged(ref collect);
             return flag;           
         }
          
