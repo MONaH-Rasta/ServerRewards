@@ -14,8 +14,8 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerRewards", "k1lly0u", "0.4.72")]
-    [Description("A UI shop to buy items, kits and commands")]
+    [Info("Server Rewards", "k1lly0u", "0.4.73")]
+    [Description("UI shop to buy items, kits, and commands")]
     class ServerRewards : RustPlugin
     {
         #region Fields
@@ -3838,7 +3838,7 @@ namespace Oxide.Plugins
                             changed = true;
                         }
                     }
-                    foreach (Rust.Workshop.ApprovedSkinInfo skin in Rust.Workshop.Approved.All.Where(x => x.Name == item.shortname))
+                    foreach (Rust.Workshop.ApprovedSkinInfo skin in Rust.Workshop.Approved.All.Values.Where(x => x.Name == item.shortname))
                     {
                         if (!saleData.items[item.shortname].ContainsKey(skin.WorkshopdId))
                         {
@@ -3859,7 +3859,7 @@ namespace Oxide.Plugins
                 List<ItemSkinDirectory.Skin> skins = ItemSkinDirectory.ForItem(item).ToList();
                 if (skins.Count > 0)
                     return true;
-                else if (Rust.Workshop.Approved.All.Where(x => x.Name == item.shortname).Count() > 0)
+                else if (Rust.Workshop.Approved.All.Where(x => x.Value.Name == item.shortname).Count() > 0)
                     return true;
 
             }
