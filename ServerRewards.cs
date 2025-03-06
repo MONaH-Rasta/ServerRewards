@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Server Rewards", "k1lly0u", "0.4.77")]
+    [Info("Server Rewards", "k1lly0u", "0.4.78")]
     [Description("UI shop to buy items, kits, and commands")]
     class ServerRewards : RustPlugin
     {
@@ -127,6 +127,20 @@ namespace Oxide.Plugins
                     Components =
                     {
                         new CuiRawImageComponent {Png = png },
+                        new CuiRectTransformComponent {AnchorMin = aMin, AnchorMax = aMax }
+                    }
+                });
+            }
+            
+            public static void LoadImage(ref CuiElementContainer container, string panel, int itemid, ulong skinid, string aMin, string aMax)
+            {
+                container.Add(new CuiElement
+                {
+                    Name = CuiHelper.GetGuid(),
+                    Parent = panel,
+                    Components =
+                    {
+                        new CuiImageComponent() {ItemId = itemid, SkinId = skinid },
                         new CuiRectTransformComponent {AnchorMin = aMin, AnchorMax = aMax }
                     }
                 });
@@ -900,7 +914,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private void CreateItemEntry(ref CuiElementContainer container, string panelName, string itemId, RewardData.RewardItem item, int number)
+        private void CreateItemEntry(ref CuiElementContainer container, string panelName, string itemIdS, RewardData.RewardItem item, int number)
         {
             Vector2 dimensions = new Vector2(0.1f, 0.19f);
             Vector2 origin = new Vector2(0.03f, 0.72f);
@@ -929,15 +943,19 @@ namespace Oxide.Plugins
             Vector2 posMin = origin + offset;
             Vector2 posMax = posMin + dimensions;
 
-            string itemIcon = string.IsNullOrEmpty(item.customIcon) ? GetImage(item.shortname, item.skinId) : GetImage(item.customIcon, 0);
+            string itemIcon = !string.IsNullOrEmpty(item.customIcon) ? GetImage(item.customIcon, 0) : string.Empty;
+            int itemId = item.ItemDefinition ? item.ItemDefinition.itemid : 0;
+           
             if (!string.IsNullOrEmpty(itemIcon))
-            {
                 UI.LoadImage(ref container, panelName, itemIcon, $"{posMin.x + 0.02} {posMin.y + 0.08}", $"{posMax.x - 0.02} {posMax.y}");
-                if (item.amount > 1)
-                    UI.CreateLabel(ref container, panelName, $"{color1}x{item.amount}</color>", 16, $"{posMin.x + 0.02} {posMin.y + 0.09}", $"{posMax.x - 0.02} {posMax.y - 0.02}", TextAnchor.LowerLeft);
-            }
+            else if (itemId != 0)
+                UI.LoadImage(ref container, panelName, itemId, item.skinId, $"{posMin.x + 0.02} {posMin.y + 0.08}", $"{posMax.x - 0.02} {posMax.y}");
+            
+            if (item.amount > 1)
+                UI.CreateLabel(ref container, panelName, $"{color1}x{item.amount}</color>", 16, $"{posMin.x + 0.02} {posMin.y + 0.09}", $"{posMax.x - 0.02} {posMax.y - 0.02}", TextAnchor.LowerLeft);
+            
             UI.CreateLabel(ref container, panelName, $"{item.displayName}{(item.isBp ? " " + msg("isBp") : string.Empty)}", 14, $"{posMin.x} {posMin.y + 0.04}", $"{posMax.x} {posMin.y + 0.09}");
-            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], $"{msg("storeCost")}: {item.cost}", 14, $"{posMin.x + 0.015} {posMin.y + 0.01}", $"{posMax.x - 0.015} {posMin.y + 0.04}", $"SRUI_BuyItem {itemId}");
+            UI.CreateButton(ref container, panelName, uiColors["buttonbg"], $"{msg("storeCost")}: {item.cost}", 14, $"{posMin.x + 0.015} {posMin.y + 0.01}", $"{posMax.x - 0.015} {posMin.y + 0.04}", $"SRUI_BuyItem {itemIdS}");
         }
 
         private void CreateKitCommandEntry(ref CuiElementContainer container, string panelName, string displayName, string name, string description, int cost, int number, bool kit, string icon = null)
@@ -1872,7 +1890,7 @@ namespace Oxide.Plugins
                         return ID;
                     return false;
                 }
-                case BasePlayer.EncryptedValue<ulong> id:
+                case EncryptedValue<ulong> id:
                     return id.Get();
                 case BasePlayer player:
                     return player.userID.Get();
@@ -3544,8 +3562,10 @@ namespace Oxide.Plugins
         {
             [JsonProperty(PropertyName = "Disable fade in effect")]
             public bool FadeIn { get; set; }
+            
             [JsonProperty(PropertyName = "Display kit contents as the description")]
             public bool KitContents { get; set; }
+            
             [JsonProperty(PropertyName = "Display user playtime")]
             public bool ShowPlaytime { get; set; }
         }
@@ -3788,6 +3808,20 @@ namespace Oxide.Plugins
                 public ulong skinId;
                 public bool isBp;
                 public Category category;
+                
+                [JsonIgnore]
+                private ItemDefinition _itemDefinition;
+
+                [JsonIgnore]
+                public ItemDefinition ItemDefinition
+                {
+                    get
+                    {
+                        if (!_itemDefinition)
+                            _itemDefinition = ItemManager.FindItemDefinition(shortname);
+                        return _itemDefinition;
+                    }
+                }
             }
 
             public class RewardKit : Reward
