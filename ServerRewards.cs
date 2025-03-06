@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Server Rewards", "k1lly0u", "0.4.76")]
+    [Info("Server Rewards", "k1lly0u", "0.4.77")]
     [Description("UI shop to buy items, kits, and commands")]
     class ServerRewards : RustPlugin
     {
@@ -1701,7 +1701,7 @@ namespace Oxide.Plugins
         private int GetAmount(BasePlayer player, string shortname, ulong skinId)
         {
             List<Item> list = Facepunch.Pool.Get<List<Item>>();
-            player.inventory.AllItemsNoAlloc(ref list);
+            player.inventory.GetAllItems(list);
 
             int count = 0;
             for (int i = 0; i < list.Count; i++)
@@ -1722,7 +1722,7 @@ namespace Oxide.Plugins
             List<Item> list = Facepunch.Pool.Get<List<Item>>();
             List<Item> collect = Facepunch.Pool.Get<List<Item>>();
 
-            player.inventory.AllItemsNoAlloc(ref list);
+            player.inventory.GetAllItems(list);
 
             int count = 0;
             for (int i = 0; i < list.Count; i++)
