@@ -19,7 +19,7 @@ using UnityEngine.UI;
 
 namespace Oxide.Plugins;
 
-[Info("Server Rewards", "k1lly0u", "2.0.2")]
+[Info("Server Rewards", "k1lly0u", "2.0.3")]
 class ServerRewards : RustPlugin
 {
     #region Fields
@@ -1052,10 +1052,7 @@ class ServerRewards : RustPlugin
                 continue;
 
             if (!IsOwnedOrFreeItem(user.Player, itemDefinition.itemid, item.SkinId))
-            {
-                Debug.Log("[ServerRewards] Player does not own item or skin, skipping: " + itemDefinition.displayName.english);
                 continue;
-            }
 
             // Item container
             string itemName = $"{LAYOUT}.{item.ID}";
@@ -1118,7 +1115,7 @@ class ServerRewards : RustPlugin
         
         int count = 0;
 
-        _kitsGrid ??= new HorizontalGrid(new Vector2(307.5f, 351.5f), new Vector2(5f, 5f), 4, 630f);
+        _kitsGrid ??= new HorizontalGrid(new Vector2(307.5f, 361.5f), new Vector2(5f, 5f), 4, 630f);
         
         _balances.Data.TryGetValue(user.UserId, out int balance);
 
@@ -1158,13 +1155,13 @@ class ServerRewards : RustPlugin
         string icon = !string.IsNullOrEmpty(kit.IconURL) ? GetImage(kit.IconURL) : string.Empty;
         bool hasIcon = !string.IsNullOrEmpty(icon);
         
-        UI.Text(container, parent, kit.DisplayName, Anchor.TopStretch, new Offset(5f, -22.5f, hasIcon ? -45f : -5f, -2.5f), size: 12, align: TextAnchor.MiddleLeft);
+        UI.Text(container, parent, kit.DisplayName, Anchor.TopStretch, new Offset(5f, -22.5f, hasIcon ? -55f : -5f, -2.5f), size: 12, align: TextAnchor.MiddleLeft);
         
         if (!string.IsNullOrEmpty(kit.Description))
-            UI.Text(container, parent, kit.Description, Anchor.TopStretch, new Offset(5f, -45f, hasIcon ? -45f : -5f, -22.5f), size: 8, align: TextAnchor.MiddleLeft);
+            UI.Text(container, parent, kit.Description, Anchor.TopStretch, new Offset(5f, -55f, hasIcon ? -55f : -5f, -25f), size: 10, align: TextAnchor.UpperLeft);
         
         if (hasIcon)
-            UI.PNG(container, parent, GetImage(kit.IconURL), Anchor.TopRight, new Offset(-42.5f, -42.5f, -2.5f, -2.5f));
+            UI.PNG(container, parent, GetImage(kit.IconURL), Anchor.TopRight, new Offset(-52.5f, -52.5f, -2.5f, -2.5f));
         
         _kitsBeltGrid ??= new HorizontalGrid(new Vector2(32, 32), new Vector2(5f, 5f), 8, 0f);
         _kitsWearGrid ??= new HorizontalGrid(new Vector2(32, 32), new Vector2(5f, 5f), 8, 0f);
@@ -1172,21 +1169,21 @@ class ServerRewards : RustPlugin
         
         // Belt Layout
         string beltName = $"{parent}.belt";
-        UI.Panel(container, parent, Colors.Clear, Anchor.TopStretch, new Offset(2.5f, -100.75f, -2.5f, -46.25f), beltName);
+        UI.Panel(container, parent, Colors.Clear, Anchor.TopStretch, new Offset(2.5f, -110.75f, -2.5f, -56.25f), beltName);
         UI.Panel(container, beltName, Colors.BarelyVisibleDark, Anchor.TopStretch, new Offset(0f, -20f, 0f, 0f));
         UI.Text(container, beltName, user.Translate("UI.Kit.Belt"), Anchor.TopStretch, new Offset(5f, -20f, 5f, 0f), size: 12, align: TextAnchor.MiddleLeft);
         LayoutKitContainer(container, beltName, user, kitData.BeltItems, 6, _kitsBeltGrid);
         
         // Wear Layout
         string wearName = $"{parent}.wear";
-        UI.Panel(container, parent, Colors.Clear, Anchor.TopStretch, new Offset(2.5f, -157.75f, -2.5f, -103.25f), wearName);
+        UI.Panel(container, parent, Colors.Clear, Anchor.TopStretch, new Offset(2.5f, -167.75f, -2.5f, -113.25f), wearName);
         UI.Panel(container, wearName, Colors.BarelyVisibleDark, Anchor.TopStretch, new Offset(0f, -20f, 0f, 0f));
         UI.Text(container, wearName, user.Translate("UI.Kit.Wear"), Anchor.TopStretch, new Offset(5f, -20f, 5f, 0f), size: 12, align: TextAnchor.MiddleLeft);
         LayoutKitContainer(container, wearName, user, kitData.WearItems, 8, _kitsWearGrid);
         
         // Main Layout
         string mainName = $"{parent}.main";
-        UI.Panel(container, parent, Colors.Clear, Anchor.TopStretch, new Offset(2.5f, -328.25f, -2.5f, -160.25f), mainName);
+        UI.Panel(container, parent, Colors.Clear, Anchor.TopStretch, new Offset(2.5f, -338.25f, -2.5f, -170.25f), mainName);
         UI.Panel(container, mainName, Colors.BarelyVisibleDark, Anchor.TopStretch, new Offset(0f, -20f, 0f, 0f));
         UI.Text(container, mainName, user.Translate("UI.Kit.Main"), Anchor.TopStretch, new Offset(5f, -20f, 5f, 0f), size: 12, align: TextAnchor.MiddleLeft);
         LayoutKitContainer(container, mainName, user, kitData.MainItems, 24, _kitsMainGrid);
@@ -1253,7 +1250,7 @@ class ServerRewards : RustPlugin
         
         int count = 0;
 
-        _commandsGrid ??= new HorizontalGrid(new Vector2(307.5f, 70f), new Vector2(5f, 5f), 4, 630f);
+        _commandsGrid ??= new HorizontalGrid(new Vector2(411.6f, 90f), new Vector2(5f, 5f), 3, 630f);
         
         _balances.Data.TryGetValue(user.UserId, out int balance);
 
@@ -1285,13 +1282,13 @@ class ServerRewards : RustPlugin
         string icon = !string.IsNullOrEmpty(command.IconURL) ? GetImage(command.IconURL) : string.Empty;
         bool hasIcon = !string.IsNullOrEmpty(icon);
         
-        UI.Text(container, parent, command.DisplayName, Anchor.TopStretch, new Offset(5f, -22.5f, hasIcon ? -45f : -5f, -2.5f), size: 12, align: TextAnchor.MiddleLeft);
+        UI.Text(container, parent, command.DisplayName, Anchor.TopStretch, new Offset(5f, -22.5f, hasIcon ? -65f : -5f, -2.5f), size: 12, align: TextAnchor.MiddleLeft);
         
         if (!string.IsNullOrEmpty(command.Description))
-            UI.Text(container, parent, command.Description, Anchor.TopStretch, new Offset(5f, -45f, hasIcon ? -45f : -5f, -22.5f), size: 8, align: TextAnchor.MiddleLeft);
+            UI.Text(container, parent, command.Description, Anchor.TopStretch, new Offset(5f, -65f, hasIcon ? -65f : -5f, -22.5f), size: 10, align: TextAnchor.UpperLeft);
         
         if (hasIcon)
-            UI.PNG(container, parent, GetImage(command.IconURL), Anchor.TopRight, new Offset(-42.5f, -42.5f, -2.5f, -2.5f));
+            UI.PNG(container, parent, GetImage(command.IconURL), Anchor.TopRight, new Offset(-62.5f, -62.5f, -2.5f, -2.5f));
         
         if (user.AdminMode)
             CreateAdminButtons(container, parent, user, ProductType.Command, command.ID);
@@ -3902,7 +3899,6 @@ class ServerRewards : RustPlugin
             
         if (dirty)
         {
-            Debug.Log("save prices");
             _sellPricing.Save();
             Debug.Log("[ServerRewards] Updated sell price list with new items.");
         }
