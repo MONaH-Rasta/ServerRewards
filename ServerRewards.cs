@@ -19,7 +19,7 @@ using UnityEngine.UI;
 
 namespace Oxide.Plugins;
 
-[Info("Server Rewards", "k1lly0u", "2.0.0")]
+[Info("Server Rewards", "k1lly0u", "2.0.2")]
 class ServerRewards : RustPlugin
 {
     #region Fields
@@ -1052,7 +1052,10 @@ class ServerRewards : RustPlugin
                 continue;
 
             if (!IsOwnedOrFreeItem(user.Player, itemDefinition.itemid, item.SkinId))
+            {
+                Debug.Log("[ServerRewards] Player does not own item or skin, skipping: " + itemDefinition.displayName.english);
                 continue;
+            }
 
             // Item container
             string itemName = $"{LAYOUT}.{item.ID}";
@@ -1775,10 +1778,10 @@ class ServerRewards : RustPlugin
         for (int i = 0; i < count; i++)
         {
             string cmd = command.Commands[i];
-            CreateRemovableCommandField(container, parent, 5 + i, i, user.Translate("UI.Fields.Command", i + 1), cmd, i == 0);
+            CreateRemovableCommandField(container, parent, 6 + i, i, user.Translate("UI.Fields.Command", i + 1), cmd, i == 0);
         }
         
-        CreateInputField(container, parent, 5 + count, user.Translate("UI.Fields.Command", count + 1), "", $"{Commands.SetCommand} {(int)SetCommandType.Add} {count}", count == 0);
+        CreateInputField(container, parent, 6 + count, user.Translate("UI.Fields.Command", count + 1), "", $"{Commands.SetCommand} {(int)SetCommandType.Add} {count}", count == 0);
     }
     
     #region Selectors
@@ -4298,7 +4301,7 @@ class ServerRewards : RustPlugin
                 return false;
 
             remaining = time - CurrentTime();
-            return true;
+            return remaining > 0;
         }
     }
 
