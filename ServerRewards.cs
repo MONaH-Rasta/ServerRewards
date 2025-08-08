@@ -19,7 +19,7 @@ using UnityEngine.UI;
 
 namespace Oxide.Plugins;
 
-[Info("Server Rewards", "k1lly0u", "2.0.3")]
+[Info("Server Rewards", "k1lly0u", "2.0.4")]
 class ServerRewards : RustPlugin
 {
     #region Fields
@@ -5050,8 +5050,40 @@ class ServerRewards : RustPlugin
             _products.Data.ProductIndex++;
         }
         
+        foreach (OldRewardData.OldRewardKit kit in rewardData.kits.Values)
+        {
+            _products.Data.Kits.Add(new Products.Kit
+            {
+                ID = _products.Data.ProductIndex,
+                KitName = kit.kitName,
+                Description = kit.description,
+                IconURL = kit.iconName,
+                DisplayName = kit.kitName,
+                Cost = kit.cost,
+                Cooldown = kit.cooldown
+            });
+            
+            _products.Data.ProductIndex++;
+        }
+        
+        foreach (OldRewardData.OldRewardCommand command in rewardData.commands.Values)
+        {
+            _products.Data.Commands.Add(new Products.Command
+            {
+                ID = _products.Data.ProductIndex,
+                DisplayName = command.displayName,
+                Description = command.description,
+                IconURL = command.iconName,
+                Cost = command.cost,
+                Cooldown = command.cooldown,
+                Commands = new List<string>(command.commands)
+            });
+            
+            _products.Data.ProductIndex++;
+        }
+        
         _products.Save();
-        Debug.Log($"[ServerRewards] Converted {_products.Data.Items.Count} items!");
+        Debug.Log($"[ServerRewards] Converted {_products.Data.Items.Count} items, {_products.Data.Kits.Count} kits and {_products.Data.Commands.Count} commands!");
     }
     
     private void ConvertPlayerData(OldPlayerData playerData)
