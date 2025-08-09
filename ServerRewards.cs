@@ -19,7 +19,7 @@ using UnityEngine.UI;
 
 namespace Oxide.Plugins;
 
-[Info("Server Rewards", "k1lly0u", "2.0.4")]
+[Info("Server Rewards", "k1lly0u", "2.0.5")]
 class ServerRewards : RustPlugin
 {
     #region Fields
@@ -164,9 +164,24 @@ class ServerRewards : RustPlugin
 
     #region Chat Commands
 
+    private bool OpenBlockedByPlugin(BasePlayer player)
+    {
+        object success = Interface.Call("canShop", player);
+        if (success == null) 
+            return false;
+        
+        string message = success as string ?? _getMessage("Message.ShopBlockedByPlugin", player.UserIDString);
+            
+        player.ChatMessage(message);
+        return true;
+    }
+
     private void ChatOpenMenu(BasePlayer player, string command, string[] args)
     {
         if (Configuration.Options.NpcOnly && !IsAdmin(player))
+            return;
+
+        if (OpenBlockedByPlugin(player))
             return;
         
         OpenStore(player);
@@ -584,6 +599,9 @@ class ServerRewards : RustPlugin
             return;
 
         if (!_npcStores.Data.TryGetValue(npc.userID, out NpcStore npcStore))
+            return;
+        
+        if (OpenBlockedByPlugin(player))
             return;
 
         if (npcStore.Products != null)
@@ -2428,7 +2446,7 @@ class ServerRewards : RustPlugin
     private void CommandOpenSelector(ConsoleSystem.Arg arg)
     {
         BasePlayer player = arg.Player();
-        if (!player || !IsAdmin(player))
+        if (!player)
             return;
 
         UIUser user = UIUser.Get(player);
@@ -3853,7 +3871,7 @@ class ServerRewards : RustPlugin
     private int CheckPoints(BasePlayer player) => 
         !player ? 0 : CheckPoints(player.userID);
 
-    private int CheckPoints(Core.Libraries.Covalence.IPlayer player, int amount) => 
+    private int CheckPoints(Core.Libraries.Covalence.IPlayer player) => 
         player == null ? 0 : CheckPoints(player.Id);
 
     private int CheckPoints(string userID) => 
@@ -5446,6 +5464,7 @@ class ServerRewards : RustPlugin
         ["Message.Notification.Unspent"] = "You currently have <color=#B6F34A>{0}RP</color> to spend.",
         ["Message.Notification.Unspent.Command"] = "You can access the store by typing <color=#B6F34A>/{0}</color>",
         ["Message.Notification.Unspent.NPC"] = "Find a <color=#B6F34A>NPC dealer</color> to access the store",
+        ["Message.ShopBlockedByPlugin"] = "Another plugin is preventing you from accessing the store at this time"
     };
     
     #endregion
