@@ -19,7 +19,7 @@ using UnityEngine.UI;
 
 namespace Oxide.Plugins;
 
-[Info("Server Rewards", "k1lly0u", "2.0.6")]
+[Info("Server Rewards", "k1lly0u", "2.0.7")]
 class ServerRewards : RustPlugin
 {
     #region Fields
@@ -1069,7 +1069,7 @@ class ServerRewards : RustPlugin
             if (!itemDefinition)
                 continue;
 
-            if (!IsOwnedOrFreeItem(user.Player, itemDefinition.itemid, item.SkinId))
+            if (Configuration.Options.HideDlc && !user.AdminMode && !IsOwnedOrFreeItem(user.Player, itemDefinition.itemid, item.SkinId))
                 continue;
 
             // Item container
@@ -1088,6 +1088,8 @@ class ServerRewards : RustPlugin
     
     private void CreateItemElement(CuiElementContainer container, string parent, Products.Item item, UIUser user, int balance)
     {
+        bool isDlcItem = !item.IgnoreDlcCheck && !Configuration.Options.HideDlc && !IsOwnedOrFreeItem(user.Player, item.ItemDefinition.itemid, item.SkinId);
+        
         string iconName = $"{parent}.icon";
         UI.Panel(container, parent, Colors.Clear, Anchor.TopCenter, new Offset(-64f, -130.5f, 64f, -2.5f), iconName);
         
@@ -1109,7 +1111,7 @@ class ServerRewards : RustPlugin
 
         if (user.AdminMode)
             CreateAdminButtons(container, parent, user, ProductType.Item, item.ID);
-        else CreatePurchaseButton(container, parent, user, ProductType.Item, item.ID, item.Cost, balance);
+        else CreatePurchaseButton(container, parent, user, ProductType.Item, item.ID, item.Cost, balance, isDlcItem);
     }
 
     #endregion
@@ -1684,7 +1686,7 @@ class ServerRewards : RustPlugin
         
         int fieldCount = product switch
         {
-            Products.Item => 9,
+            Products.Item => 10,
             Products.Kit => 7,
             Products.Command cmd => 7 + cmd.Commands.Count,
             _ => 0,
@@ -1755,6 +1757,7 @@ class ServerRewards : RustPlugin
         CreateInputField(container, parent, 6, user.Translate("UI.Fields.Cooldown"), item.Cooldown.ToString(), $"{Commands.SetField} {nameof(Products.Product.Cooldown)}");
         CreateInputField(container, parent, 7, user.Translate("UI.Fields.IconUrl"), item.IconURL, $"{Commands.SetField} {nameof(Products.Product.IconURL)}");
         CreateInputField(container, parent, 8, user.Translate("UI.Fields.Permission"), item.Permission, $"{Commands.SetField} {nameof(Products.Product.Permission)}");
+        CreateToggleField(container, parent, user, 9, user.Translate("UI.Fields.IgnoreDlcCheck"), item.IgnoreDlcCheck, $"{Commands.SetField} {nameof(Products.Item.IgnoreDlcCheck)}");
     }
     
     private void AddOrEditKitFields(CuiElementContainer container, string parent, UIUser user)
@@ -2008,7 +2011,7 @@ class ServerRewards : RustPlugin
             _ => Colors.White
         };
         
-        CuiElementContainer container = UI.Container(Layer.Overlay, UI_TOAST, backgroundColor, Anchor.FullStretch, new Offset(450, 50, -450, -620), material: Materials.GreyOut);
+        CuiElementContainer container = UI.Container(Layer.Overlay, UI_TOAST, backgroundColor, Anchor.FullStretch, new Offset(450, 50, -450, -620), material: Materials.GreyOut, cursorAndKeyboard: false);
         UI.Sprite(container, UI_TOAST, sprite, textColor, Anchor.TopLeft, new Offset(5f, -25f, 25f, -5f));
         
         UI.Text(container, UI_TOAST, title, Anchor.TopStretch, new Offset(30f, -25f, -5f, -5f), color: textColor, align: TextAnchor.MiddleLeft);
@@ -2097,19 +2100,21 @@ class ServerRewards : RustPlugin
         user.SendUI(container);
     }
     
-    private void CreatePurchaseButton(CuiElementContainer container, string parent, UIUser user, ProductType productType, int productId, int productCost, int balance)
+    private void CreatePurchaseButton(CuiElementContainer container, string parent, UIUser user, ProductType productType, int productId, int productCost, int balance, bool isDlcItem = false)
     {
         bool isOnCooldown = _cooldowns.Data.HasCooldown(user.UserId, productId, out double remaining);
         
         bool canPurchase = productCost <= balance && !isOnCooldown;
         
-        string buttonColor = !canPurchase ? Configuration.UI.ButtonReject : Configuration.UI.ButtonPurchase;
-        string textColor = !canPurchase ? Configuration.UI.ButtonRejectText : Configuration.UI.ButtonPurchaseText;
+        string buttonColor = !canPurchase || isDlcItem ? Configuration.UI.ButtonReject : Configuration.UI.ButtonPurchase;
+        string textColor = !canPurchase || isDlcItem ? Configuration.UI.ButtonRejectText : Configuration.UI.ButtonPurchaseText;
+
+        string buttonText = isDlcItem ? user.Translate("UI.DLCItem") : productCost == 0 ? user.Translate("UI.Free") : user.Translate("UI.Cost", productCost);
         
-        string sprite = !canPurchase ? Sprites.Occupied : Sprites.Cart;
-        string command = !canPurchase ? string.Empty : $"{Commands.Purchase} {(int)productType} {productId}";
+        string sprite = !canPurchase || isDlcItem ? Sprites.Occupied : Sprites.Cart;
+        string command = !canPurchase || isDlcItem ? string.Empty : $"{Commands.Purchase} {(int)productType} {productId}";
         
-        Offset iconOffset = !canPurchase ? new Offset(6f, -7f, 20f, 7f) : new Offset(4f, -9f, 22f, 9f);
+        Offset iconOffset = !canPurchase || isDlcItem ? new Offset(6f, -7f, 20f, 7f) : new Offset(4f, -9f, 22f, 9f);
         
         string buttonName = $"{parent}.button";
         
@@ -2118,7 +2123,7 @@ class ServerRewards : RustPlugin
         
         if (isOnCooldown)
             UI.Countdown(container, buttonName, "%TIME_LEFT%", (int)remaining, 0, Anchor.FullStretch, new Offset(11f, 0f, 0f, 0f), color: textColor);
-        else UI.Text(container, buttonName, productCost == 0 ? user.Translate("UI.Free") : user.Translate("UI.Cost", productCost), Anchor.FullStretch, new Offset(11f, 0f, 0f, 0f), size: 12, color: textColor);
+        else UI.Text(container, buttonName, buttonText, Anchor.FullStretch, new Offset(11f, 0f, 0f, 0f), size: 12, color: textColor);
         
         UI.Button(container, buttonName, command, Anchor.FullStretch, Offset.zero);
     }
@@ -2380,6 +2385,7 @@ class ServerRewards : RustPlugin
             return;
         
         user.AdminMode = !user.AdminMode;
+        user.SearchFilter = string.Empty;
         OpenStore(player);
     }
     
@@ -2401,6 +2407,7 @@ class ServerRewards : RustPlugin
             NavigationCategory.Commands => new Products.Command(),
             _ => null
         };
+        user.SearchFilter = string.Empty;
         
         if (user.AddEditProduct == null)
             return;
@@ -2436,6 +2443,7 @@ class ServerRewards : RustPlugin
             ProductType.Kit => new Products.Kit(product),
             ProductType.Command => new Products.Command(product),
         };
+        user.SearchFilter = string.Empty;
         
         CreateAddOrEditProductMenu(user);
     }
@@ -2570,6 +2578,7 @@ class ServerRewards : RustPlugin
             return;
 
         user.AddEditProduct = null;
+        user.SearchFilter = string.Empty;
         
         OpenStore(player);
     }
@@ -2609,6 +2618,8 @@ class ServerRewards : RustPlugin
             AddImage(product.IconURL);
 
         user.AddEditProduct = null;
+        user.SearchFilter = string.Empty;
+        
         OpenStore(player);
     }
     
@@ -3214,7 +3225,7 @@ class ServerRewards : RustPlugin
 
     private static class UI
     {
-        public static CuiElementContainer Container(Layer layer, string name, string color, Anchor anchor, Offset offset, string material = Materials.BackgroundBlur)
+        public static CuiElementContainer Container(Layer layer, string name, string color, Anchor anchor, Offset offset, string material = Materials.BackgroundBlur, bool cursorAndKeyboard = true)
         {
             CuiElementContainer container = Pool.Get<CuiElementContainer>();
             
@@ -3228,18 +3239,21 @@ class ServerRewards : RustPlugin
             rect.OffsetMin = offset.Min;
             rect.OffsetMax = offset.Max;
             
-            CuiNeedsCursorComponent cursor = Pool.Get<CuiNeedsCursorComponent>();
-            CuiNeedsKeyboardComponent keyboard = Pool.Get<CuiNeedsKeyboardComponent>();
-            
             CuiElement element = Pool.Get<CuiElement>();
             element.Name = string.IsNullOrEmpty(name) ? CuiHelper.GetGuid() : name;
             element.Parent = layer.ToString();
             element.DestroyUi = name;
             element.Components.Add(image);
             element.Components.Add(rect);
-            element.Components.Add(cursor);
-            element.Components.Add(keyboard);
-            
+
+            if (cursorAndKeyboard)
+            {
+                CuiNeedsCursorComponent cursor = Pool.Get<CuiNeedsCursorComponent>();
+                CuiNeedsKeyboardComponent keyboard = Pool.Get<CuiNeedsKeyboardComponent>();
+                element.Components.Add(cursor);
+                element.Components.Add(keyboard);
+            }
+
             container.Add(element);
             return container;
         }
@@ -4007,8 +4021,11 @@ class ServerRewards : RustPlugin
             [JsonProperty("Admin RP Command")]
             public string RPCommand { get; set; }
 
-            [JsonProperty("Only show/give players skins that they are allowed to use (requires PlayerDLCAPI)")]
+            [JsonProperty("Only allow players to purchase DLC/Skins that they are allowed to use (requires PlayerDLCAPI)")]
             public bool OwnedSkins { get; set; }
+            
+            [JsonProperty("Hide DLC items in the store")]
+            public bool HideDlc { get; set; }
 
             [JsonProperty("Log all transactions")]
             public bool Logs { get; set; }
@@ -4189,6 +4206,7 @@ class ServerRewards : RustPlugin
                 StoreCommand = "s",
                 RPCommand = "rp",
                 OwnedSkins = true,
+                HideDlc = false,
                 Logs = true,
                 NpcOnly = false,
                 ExchangeRate = 1,
@@ -4230,6 +4248,12 @@ class ServerRewards : RustPlugin
 
         if (Configuration.Version == default)
             Configuration = GetBaseConfig();
+
+        if (Configuration.Version < new VersionNumber(2, 0, 7))
+        {
+            Configuration.Options.OwnedSkins = true;
+            Configuration.Options.HideDlc = false;
+        }
         
         Configuration.Version = Version;
         PrintWarning("Config update completed!");
@@ -4475,6 +4499,7 @@ class ServerRewards : RustPlugin
             public int Amount;
             public ulong SkinId;
             public bool IsBp;
+            public bool IgnoreDlcCheck;
             public ItemCategory Category;
 
             [JsonIgnore]
@@ -4522,6 +4547,7 @@ class ServerRewards : RustPlugin
                     item.SkinId = SkinId;
                     item.IsBp = IsBp;
                     item.Category = Category;
+                    item.IgnoreDlcCheck = IgnoreDlcCheck;
                 }
             }
             
@@ -4535,6 +4561,7 @@ class ServerRewards : RustPlugin
                     SkinId = item.SkinId;
                     IsBp = item.IsBp;
                     Category = item.Category;
+                    IgnoreDlcCheck = item.IgnoreDlcCheck;
                     _itemDefinition = null; // Reset to ensure it gets reloaded
                 }
             }
@@ -4590,6 +4617,10 @@ class ServerRewards : RustPlugin
                     
                     case nameof(IsBp):
                         IsBp = bool.TryParse(value, out bool isBp) && isBp;
+                        break;
+                    
+                    case nameof(IgnoreDlcCheck):
+                        IgnoreDlcCheck = bool.TryParse(value, out bool ignoreDlcCheck) && ignoreDlcCheck;
                         break;
                 }
             }
@@ -4865,7 +4896,7 @@ class ServerRewards : RustPlugin
                     
                     case nameof(Permission):
                         const string PERMISSION_PREFIX = "serverrewards.";
-                        if (!value.StartsWith(PERMISSION_PREFIX))
+                        if (!string.IsNullOrEmpty(value) && !value.StartsWith(PERMISSION_PREFIX))
                             value = PERMISSION_PREFIX + value;
                         Permission = value;
                         break;
@@ -5398,6 +5429,7 @@ class ServerRewards : RustPlugin
         ["UI.Fields.Amount"] = "AMOUNT",
         ["UI.Fields.Skin"] = "SKIN ID",
         ["UI.Fields.Blueprint"] = "BLUEPRINT",
+        ["UI.Fields.IgnoreDlcCheck"] = "IGNORE DLC",
         ["UI.Fields.DisplayName"] = "DISPLAY NAME",
         ["UI.Fields.Description"] = "DESCRIPTION",
         ["UI.Fields.Cost"] = "COST",
@@ -5437,6 +5469,7 @@ class ServerRewards : RustPlugin
         ["UI.User"] = "USER",
         ["UI.Free"] = "FREE",
         ["UI.Cost"] = "{0}RP",
+        ["UI.DLCItem"] = "REQUIRES DLC",
         ["UI.Edit"] = "EDIT",
         ["UI.Delete"] = "DEL",
         ["UI.UnitPrice"] = "UNIT PRICE",
