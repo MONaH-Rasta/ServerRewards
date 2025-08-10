@@ -19,7 +19,7 @@ using UnityEngine.UI;
 
 namespace Oxide.Plugins;
 
-[Info("Server Rewards", "k1lly0u", "2.0.5")]
+[Info("Server Rewards", "k1lly0u", "2.0.6")]
 class ServerRewards : RustPlugin
 {
     #region Fields
@@ -1571,8 +1571,6 @@ class ServerRewards : RustPlugin
             count++;
         }
         
-        Pool.FreeUnmanaged(ref items);
-
         _itemsGrid.ResizeToFit(count, contentRect);
     }
     
